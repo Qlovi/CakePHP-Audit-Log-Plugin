@@ -28,6 +28,7 @@ class AuditableBehavior extends ModelBehavior {
    * @param   array   $settings   Settings overrides.
    */
   public function setup( Model $Model, $settings = array() ) {
+      
     if( !isset( $this->settings[$Model->alias] ) ) {
       $this->settings[$Model->alias] = array(
         'ignore' => array( 'created', 'updated', 'modified' ),
@@ -100,6 +101,7 @@ class AuditableBehavior extends ModelBehavior {
    * @return  void
    */
   public function afterSave( Model $Model, $created , $options = array() ) {
+      //audit is the original data
     $audit = array( $Model->alias => $this->_getModelData( $Model ) );
     $audit[$Model->alias][$Model->primaryKey] = $Model->id;
 
@@ -131,7 +133,8 @@ class AuditableBehavior extends ModelBehavior {
         'event'     => $created ? 'CREATE' : 'EDIT',
         'model'     => $Model->alias,
         'entity_id' => $Model->id,
-        'json_object' => json_encode( $audit ),
+        //'json_object' => json_encode( $audit ),
+        'json_object' => json_encode( array() ),
         'source_id' => isset( $source['id'] ) ? $source['id'] : null,
         'description' => isset( $source['description'] ) ? $source['description'] : null,
       )
@@ -143,6 +146,7 @@ class AuditableBehavior extends ModelBehavior {
      */
     $updates = array();
     foreach( $audit[$Model->alias] as $property => $value ) {
+        if(is_numeric($value)) continue;
       $delta = array();
 
       /*
@@ -154,6 +158,7 @@ class AuditableBehavior extends ModelBehavior {
       }
 
       if( !$created ) {
+          
         if( array_key_exists( $property, $this->_original[$Model->alias] ) && $this->_original[$Model->alias][$property] != $value ) {
           /*
            * If the property exists in the original _and_ the
@@ -274,6 +279,9 @@ class AuditableBehavior extends ModelBehavior {
    * @return  array
    */
   private function _getModelData( Model $Model ) {
+      //just in cas, turn cacheQueries off
+            $Model->cacheQueries = false;
+
     /*
      * Retrieve the model data along with its appropriate HABTM
      * model data.
