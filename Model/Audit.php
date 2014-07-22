@@ -11,9 +11,6 @@ App::uses('AuditLogAppModel', 'AuditLog.Model');
  */
 class Audit extends AuditLogAppModel {
 
-
-    //The Associations below have been created with all possible keys, those that are not needed can be removed
-
     /**
      * hasMany associations
      *
@@ -21,7 +18,7 @@ class Audit extends AuditLogAppModel {
      */
     public $hasMany = array(
         'AuditDelta' => array(
-            'className' => 'AuditDelta',
+            'className' => 'AuditLog.AuditDelta',
             'foreignKey' => 'audit_id',
             'dependent' => false,
             'conditions' => '',
