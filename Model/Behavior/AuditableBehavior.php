@@ -11,7 +11,12 @@ class AuditableBehavior extends ModelBehavior {
    * @var   Object
    */
   private $_original = array();
-
+  
+  /**
+   * Instance of the Audit Model
+   * @var Audit the Audit Model 
+   */
+  public $Audit;
   /**
    * Initiate behavior for the model using specified settings.
    *
@@ -41,7 +46,9 @@ class AuditableBehavior extends ModelBehavior {
       $settings = array();
     }
     $this->settings[$Model->alias] = array_merge_recursive( $this->settings[$Model->alias], $settings );
-
+    
+    //create the Auduit instance
+    $this->Audit = ClassRegistry::init('AuditLog.Audit');
     /*
      * Ensure that no HABTM models which are already auditable
      * snuck into the settings array. That would be bad. Same for
@@ -104,17 +111,6 @@ class AuditableBehavior extends ModelBehavior {
       //audit is the original data
     $audit = array( $Model->alias => $this->_getModelData( $Model ) );
     $audit[$Model->alias][$Model->primaryKey] = $Model->id;
-
-    /*
-     * Create a runtime association with the Audit model and bind the
-     * Audit model to its AuditDelta model.
-     */
-    $Model->bindModel(
-      array( 'hasMany' => array( 'Audit' ) )
-    );
-    $Model->Audit->bindModel(
-      array( 'hasMany' => array( 'AuditDelta' ) )
-    );
     
     /*
      * If a currentUser() method exists in the model class (or, of
@@ -179,8 +175,10 @@ class AuditableBehavior extends ModelBehavior {
     # Insert an audit record if a new model record is being created
     # or if something we care about actually changed.
     if( $created || count( $updates ) ) {
-      $Model->Audit->create();
-      $Model->Audit->save( $data );
+      $this->Audit->create();
+      if(!$this->Audit->save( $data )){
+          throw new CakeException('Can not save Audit:'.print_r($this->Audit->validationErrors, true));
+      }
 
       if( $created ) {
         if( $Model->hasMethod( 'afterAuditCreate' ) ) {
@@ -189,7 +187,7 @@ class AuditableBehavior extends ModelBehavior {
       }
       else {
         if( $Model->hasMethod( 'afterAuditUpdate' ) ) {
-          $Model->afterAuditUpdate( $Model, $this->_original, $updates, $Model->Audit->id );
+          $Model->afterAuditUpdate( $Model, $this->_original, $updates, $this->Audit->id );
         }
       }
     }
@@ -197,10 +195,10 @@ class AuditableBehavior extends ModelBehavior {
     # Insert a delta record if something changed.
     if( count( $updates ) ) {
       foreach( $updates as $delta ) {
-        $delta['AuditDelta']['audit_id'] = $Model->Audit->id;
+        $delta['AuditDelta']['audit_id'] = $this->Audit->id;
 
-        $Model->Audit->AuditDelta->create();
-        $Model->Audit->AuditDelta->save( $delta );
+        $this->Audit->AuditDelta->create();
+        $this->Audit->AuditDelta->save( $delta );
 
         if( !$created && $Model->hasMethod( 'afterAuditProperty' ) ) {
           $Model->afterAuditProperty(
@@ -279,8 +277,8 @@ class AuditableBehavior extends ModelBehavior {
    * @return  array
    */
   private function _getModelData( Model $Model ) {
-      //just in cas, turn cacheQueries off
-            $Model->cacheQueries = false;
+      //just in case, turn cacheQueries off
+      $Model->cacheQueries = false;
 
     /*
      * Retrieve the model data along with its appropriate HABTM
