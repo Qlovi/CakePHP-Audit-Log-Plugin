@@ -8,6 +8,6 @@ class AuditLogAppModel extends AppModel{
      * or created using `ConnectionManager::create()`.
      *
      */
-    //public $useDbConfig = 'mongo';
+    public $useDbConfig = 'mongo';
     
 }
